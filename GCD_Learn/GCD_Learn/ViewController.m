@@ -144,6 +144,7 @@
     }
     
     // 任务A 任务B都完成之后，执行notify的任务
+    // 任务A、B加到了同一group中
     dispatch_group_notify(group, dispatch_get_main_queue(), ^{
        NSLog(@"Thread：%@--- 任务A 任务B 执行之后的操作", [NSThread currentThread]);
     });
