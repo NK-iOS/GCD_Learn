@@ -25,7 +25,8 @@
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event
 {
-    [self GCD_barrier_async];
+//    [self GCD_barrier_async];
+    [self GCD_semaphore];
 }
 
 // dispatch_queue_create 创建队列
@@ -148,6 +149,44 @@
     dispatch_group_notify(group, dispatch_get_main_queue(), ^{
        NSLog(@"Thread：%@--- 任务A 任务B 执行之后的操作", [NSThread currentThread]);
     });
+}
+
+// 信号量控制同时执行最大并发数（线程最大数量）
+- (void)GCD_semaphore
+{
+    // 创建信号量,设置最大并发数为2 dispatch_semaphore_create(2)
+    dispatch_semaphore_t semaphore = dispatch_semaphore_create(2);
+    
+    for (int i = 0; i < 10; i++) {
+        // 异步函数+串行队列，开一个线程顺序执行任务
+        dispatch_async(_serialQueue, ^{
+            // 等待降低信号量，信号量-1 dispatch_semaphore_wait（信号量，等待时间）
+            dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+            // 异步函数+并行队列，开多个线程并发执行任务
+            dispatch_async(_concurrentQueue, ^{
+                NSLog(@"%@--------开始——任务%d", [NSThread currentThread], i);
+                sleep(1);
+                NSLog(@"%@--------结束——任务%d", [NSThread currentThread], i);
+                // 提高信号量，信号量+1  dispatch_semaphore_signal(信号量)
+                dispatch_semaphore_signal(semaphore);
+            });
+        });
+    }
+    // 下边的循环虽然能利用信号量控制最大并发数，但由于是在主线程中执行，会阻塞主线程
+    /*
+    for (int i = 0; i < 10; i++) {
+        // 等待降低信号量，信号量-1 dispatch_semaphore_wait（信号量，等待时间）
+        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+        dispatch_async(_concurrentQueue, ^{
+            NSLog(@"%@--------开始——任务%d", [NSThread currentThread], i);
+            sleep(1);
+            NSLog(@"%@--------结束——任务%d", [NSThread currentThread], i);
+            // 任务执行完提高信号量，信号量+1  dispatch_semaphore_signal(信号量)
+            dispatch_semaphore_signal(semaphore);
+        });
+    }
+     */
+    
 }
 
 // dispatch_once_t 保证代码块中只执行一次
